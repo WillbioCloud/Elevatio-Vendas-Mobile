@@ -19,10 +19,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { supabase } from '../../lib/supabase';
 import { Lead } from '../../types';
-import { LeadCard } from '../../components/LeadCard';
-import { LeadStageModal } from '../../components/LeadStageModal';
-import { LeadTimelineModal } from '../../components/LeadTimelineModal';
-import { NewLeadModal } from '../../components/NewLeadModal';
+import { LeadCard } from '../../components/leads/LeadCard';
+import { LeadDetailsSheet } from '../../components/leads/LeadDetailsSheet';
+import { NewLeadModal } from '../../components/leads/NewLeadModal';
 
 interface StatusFilterItem {
   id: string;
@@ -32,7 +31,7 @@ interface StatusFilterItem {
 
 const FILTER_PILLS: StatusFilterItem[] = [
   { id: 'todos', label: 'Todos', matcher: () => true },
-  { id: 'aguardando', label: 'Aguardando', matcher: (s) => s.toLowerCase().includes('aguardando') },
+  { id: 'aguardando', label: 'Aguardando', matcher: (s) => s.toLowerCase().includes('aguardando') || s.toLowerCase().includes('novo') },
   { id: 'atendimento', label: 'Atendimento', matcher: (s) => s.toLowerCase().includes('atendimento') || s.toLowerCase().includes('interesse') },
   { id: 'visita', label: 'Visita', matcher: (s) => s.toLowerCase().includes('visita') || s.toLowerCase().includes('agend') },
   { id: 'proposta', label: 'Proposta', matcher: (s) => s.toLowerCase().includes('proposta') || s.toLowerCase().includes('pedido') },
@@ -41,7 +40,7 @@ const FILTER_PILLS: StatusFilterItem[] = [
 ];
 
 export default function LeadsScreen() {
-  const { user, profile, isCorretor, isSoloBroker, isAdmin, isManager, isOwner } = useAuth();
+  const { user, profile, permissions } = useAuth();
   const { colors, isDark } = useAppTheme();
 
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -51,13 +50,8 @@ export default function LeadsScreen() {
   const [activeFilterId, setActiveFilterId] = useState('todos');
 
   // Modais
-  const [stageModalLead, setStageModalLead] = useState<Lead | null>(null);
-  const [timelineModalLead, setTimelineModalLead] = useState<Lead | null>(null);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isNewLeadModalVisible, setIsNewLeadModalVisible] = useState(false);
-
-  // Regra de Acesso: Corretor associado vê apenas seus leads; Gestor e Solo Broker veem todos
-  const isAssociateCorretor = isCorretor && !isSoloBroker;
-  const canViewTeam = isOwner || isAdmin || isManager;
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -66,11 +60,11 @@ export default function LeadsScreen() {
       let query = supabase
         .from('leads')
         .select(`
-          id, name, phone, email, status, funnel_step, source, budget, value, deal_value,
-          sold_property_id, loss_reason, last_interaction, stage_updated_at, assigned_to,
+          id, name, phone, email, status, funnel_step, source, budget,
+          loss_reason, last_interaction, stage_updated_at, assigned_to,
           created_at, message, property_id,
           properties:property_id ( id, title, price ),
-          assigned_profile:assigned_to ( id, name, avatar_url, phone )
+          assigned_user:assigned_to ( id, name, avatar_url, phone )
         `)
         .order('created_at', { ascending: false });
 
@@ -78,7 +72,8 @@ export default function LeadsScreen() {
         query = query.eq('company_id', profile.company_id);
       }
 
-      if (isAssociateCorretor) {
+      // Se não puder ver leads da equipe, restringe aos próprios
+      if (!permissions.canViewTeamLeads) {
         query = query.eq('assigned_to', user.id);
       }
 
@@ -92,7 +87,7 @@ export default function LeadsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, profile?.company_id, isAssociateCorretor]);
+  }, [user, profile?.company_id, permissions.canViewTeamLeads]);
 
   useEffect(() => {
     fetchLeads();
@@ -134,50 +129,41 @@ export default function LeadsScreen() {
     });
   }, [leads, activeFilterId, search]);
 
-  const handleLeadStageUpdated = (updatedLead: Lead) => {
-    setLeads((prev) =>
-      prev.map((l) => (l.id === updatedLead.id ? { ...l, ...updatedLead } : l))
-    );
-  };
-
   const handleNewLeadCreated = (newLead: Lead) => {
     setLeads((prev) => [newLead, ...prev]);
+    fetchLeads();
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: 52 }}>
-      {/* Header com Título e Estatísticas Rápidas */}
+      {/* Header com Título e Estatísticas */}
       <View style={{ paddingHorizontal: 20, marginBottom: 10 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
-            <Text style={{ fontFamily: 'Sora_800ExtraBold', fontSize: 24, color: colors.text }}>
+            <Text style={{ fontSize: 22, fontWeight: '700', color: colors.text }}>
               Funil de Leads
             </Text>
-            <Text style={{ fontFamily: 'Sora_400Regular', fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
-              {isAssociateCorretor ? 'Meus Leads Atribuídos' : 'Gestão Geral de Leads'} • {leads.length} no total
+            <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+              {!permissions.canViewTeamLeads ? 'Meus Leads Atribuídos' : 'Gestão Geral de Leads'} • {leads.length} no total
             </Text>
           </View>
 
-          {/* Botão Novo Lead Compacto no Header */}
+          {/* Botão Novo Lead */}
           <TouchableOpacity
             onPress={() => setIsNewLeadModalVisible(true)}
             style={{
               backgroundColor: '#0ea5e9',
               paddingHorizontal: 12,
               paddingVertical: 8,
-              borderRadius: 12,
+              borderRadius: 10,
               flexDirection: 'row',
               alignItems: 'center',
               gap: 4,
-              shadowColor: '#0ea5e9',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.3,
-              shadowRadius: 4,
-              elevation: 3,
             }}
+            activeOpacity={0.8}
           >
-            <Plus size={16} color="#ffffff" />
-            <Text style={{ fontFamily: 'Sora_700Bold', fontSize: 12, color: '#ffffff' }}>
+            <Plus size={15} color="#ffffff" />
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#ffffff' }}>
               Novo Lead
             </Text>
           </TouchableOpacity>
@@ -189,19 +175,18 @@ export default function LeadsScreen() {
             flexDirection: 'row',
             alignItems: 'center',
             backgroundColor: colors.card,
-            borderRadius: 14,
+            borderRadius: 12,
             paddingHorizontal: 12,
-            height: 46,
+            height: 44,
             marginTop: 14,
             borderWidth: 1,
             borderColor: colors.border,
           }}
         >
-          <Search size={18} color={colors.textMuted} style={{ marginRight: 8 }} />
+          <Search size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
           <TextInput
             style={{
               flex: 1,
-              fontFamily: 'Sora_400Regular',
               fontSize: 14,
               color: colors.text,
             }}
@@ -235,20 +220,21 @@ export default function LeadsScreen() {
                 onPress={() => setActiveFilterId(item.id)}
                 style={{
                   backgroundColor: isSelected ? '#0ea5e9' : colors.card,
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  borderRadius: 12,
+                  paddingHorizontal: 12,
+                  paddingVertical: 7,
+                  borderRadius: 10,
                   borderWidth: 1,
                   borderColor: isSelected ? '#0ea5e9' : colors.border,
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: 6,
                 }}
+                activeOpacity={0.7}
               >
                 <Text
                   style={{
-                    fontFamily: isSelected ? 'Sora_700Bold' : 'Sora_600SemiBold',
                     fontSize: 12,
+                    fontWeight: isSelected ? '700' : '500',
                     color: isSelected ? '#ffffff' : colors.text,
                   }}
                 >
@@ -258,9 +244,7 @@ export default function LeadsScreen() {
                   style={{
                     backgroundColor: isSelected
                       ? 'rgba(255, 255, 255, 0.25)'
-                      : isDark
-                      ? 'rgba(255, 255, 255, 0.08)'
-                      : '#f1f5f9',
+                      : colors.mutedSurface,
                     paddingHorizontal: 6,
                     paddingVertical: 1,
                     borderRadius: 6,
@@ -268,8 +252,8 @@ export default function LeadsScreen() {
                 >
                   <Text
                     style={{
-                      fontFamily: 'Sora_700Bold',
                       fontSize: 10,
+                      fontWeight: '700',
                       color: isSelected ? '#ffffff' : colors.textMuted,
                     }}
                   >
@@ -286,7 +270,7 @@ export default function LeadsScreen() {
       {loading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color="#0ea5e9" size="large" />
-          <Text style={{ fontFamily: 'Sora_400Regular', fontSize: 13, color: colors.textMuted, marginTop: 10 }}>
+          <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 10 }}>
             Carregando funil de vendas...
           </Text>
         </View>
@@ -309,26 +293,27 @@ export default function LeadsScreen() {
             >
               <View
                 style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 20,
-                  backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
+                  width: 56,
+                  height: 56,
+                  borderRadius: 18,
+                  backgroundColor: colors.mutedSurface,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginBottom: 14,
+                  marginBottom: 12,
+                  borderWidth: 1,
+                  borderColor: colors.border,
                 }}
               >
-                <Users size={32} color={colors.textMuted} />
+                <Users size={28} color={colors.textMuted} />
               </View>
-              <Text style={{ fontFamily: 'Sora_700Bold', fontSize: 16, color: colors.text, textAlign: 'center' }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text, textAlign: 'center' }}>
                 Nenhum lead nesta etapa
               </Text>
               <Text
                 style={{
-                  fontFamily: 'Sora_400Regular',
-                  fontSize: 13,
+                  fontSize: 12,
                   color: colors.textMuted,
-                  marginTop: 6,
+                  marginTop: 4,
                   textAlign: 'center',
                   lineHeight: 18,
                 }}
@@ -342,52 +327,46 @@ export default function LeadsScreen() {
           renderItem={({ item }) => (
             <LeadCard
               lead={item}
-              showAssignee={canViewTeam}
-              onOpenStageModal={(targetLead) => setStageModalLead(targetLead)}
-              onOpenTimeline={(targetLead) => setTimelineModalLead(targetLead)}
+              showAssignee={permissions.canViewTeamLeads}
+              onPress={(lead) => setSelectedLead(lead)}
             />
           )}
         />
       )}
 
-      {/* Floating Action Button (FAB) + no canto inferior direito */}
+      {/* Floating Action Button (FAB) + */}
       <TouchableOpacity
         onPress={() => setIsNewLeadModalVisible(true)}
         style={{
           position: 'absolute',
           bottom: 24,
           right: 20,
-          width: 58,
-          height: 58,
-          borderRadius: 29,
+          width: 52,
+          height: 52,
+          borderRadius: 26,
           backgroundColor: '#0ea5e9',
           alignItems: 'center',
           justifyContent: 'center',
           shadowColor: '#0ea5e9',
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.4,
-          shadowRadius: 10,
-          elevation: 6,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.35,
+          shadowRadius: 8,
+          elevation: 5,
         }}
+        activeOpacity={0.85}
       >
-        <Plus size={28} color="#ffffff" />
+        <Plus size={24} color="#ffffff" />
       </TouchableOpacity>
 
-      {/* Modais de Operação de CRM */}
-      <LeadStageModal
-        visible={!!stageModalLead}
-        lead={stageModalLead}
-        onClose={() => setStageModalLead(null)}
-        onSuccess={handleLeadStageUpdated}
+      {/* Sheet de Detalhes do Lead (Kanban, Timeline, Match IA, Tarefas) */}
+      <LeadDetailsSheet
+        visible={!!selectedLead}
+        lead={selectedLead}
+        onClose={() => setSelectedLead(null)}
+        onLeadUpdated={fetchLeads}
       />
 
-      <LeadTimelineModal
-        visible={!!timelineModalLead}
-        lead={timelineModalLead}
-        onClose={() => setTimelineModalLead(null)}
-        onInteractionAdded={fetchLeads}
-      />
-
+      {/* Modal de Novo Lead */}
       <NewLeadModal
         visible={isNewLeadModalVisible}
         onClose={() => setIsNewLeadModalVisible(false)}

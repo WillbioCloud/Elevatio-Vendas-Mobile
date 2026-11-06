@@ -45,7 +45,7 @@ export function getLeadSlaHealth(lead: Lead): SlaHealth {
   if (diffHours <= 24) {
     return {
       status: 'hot',
-      label: 'Quente 🔥',
+      label: 'Quente',
       color: '#10b981',
       percentage: 100,
       timeLabel,
@@ -55,7 +55,7 @@ export function getLeadSlaHealth(lead: Lead): SlaHealth {
   if (diffHours <= 48) {
     return {
       status: 'warm',
-      label: 'Morno ⚠️',
+      label: 'Morno',
       color: '#f59e0b',
       percentage: 50,
       timeLabel,
@@ -64,11 +64,26 @@ export function getLeadSlaHealth(lead: Lead): SlaHealth {
 
   return {
     status: 'cold',
-    label: 'Congelando ❄️',
+    label: 'Atenção',
     color: '#f43f5e',
     percentage: 15,
     timeLabel,
   };
+}
+
+export function formatTimeInStage(stageUpdatedAt?: string | null): string {
+  if (!stageUpdatedAt) return 'Nesta etapa: 1d';
+  const diffMs = Date.now() - new Date(stageUpdatedAt).getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  if (diffHours < 1) {
+    const mins = Math.max(1, Math.floor(diffMs / (1000 * 60)));
+    return `Nesta etapa: ${mins}m`;
+  }
+  if (diffHours < 24) {
+    return `Nesta etapa: ${diffHours}h`;
+  }
+  const days = Math.floor(diffHours / 24);
+  return `Nesta etapa: ${days}d`;
 }
 
 export function formatPhone(phone?: string | null): string {

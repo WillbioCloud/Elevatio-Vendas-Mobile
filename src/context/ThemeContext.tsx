@@ -4,20 +4,27 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
+export interface ThemeColors {
+  bg: string;
+  card: string;
+  mutedSurface: string;
+  border: string;
+  text: string;
+  textMuted: string;
+  brand: string;
+  brandActive: string;
+  brandDark: string;
+  brandSubtle: string;
+  success: string;
+  warning: string;
+  danger: string;
+}
+
 interface ThemeContextType {
   themeMode: ThemeMode;
   isDark: boolean;
   setThemeMode: (mode: ThemeMode) => Promise<void>;
-  colors: {
-    bg: string;
-    card: string;
-    border: string;
-    text: string;
-    textMuted: string;
-    brand: string;
-    brandActive: string;
-    brandDark: string;
-  };
+  colors: ThemeColors;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -26,7 +33,7 @@ const THEME_STORAGE_KEY = '@elevatio_theme_mode';
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const deviceColorScheme = useDeviceColorScheme();
-  const [themeMode, setThemeModeState] = useState<ThemeMode>('dark'); // Padrão Premium Dark Elevatio
+  const [themeMode, setThemeModeState] = useState<ThemeMode>('dark'); // Padrão Premium Dark shadcn
 
   useEffect(() => {
     (async () => {
@@ -52,15 +59,21 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const isDark = themeMode === 'system' ? deviceColorScheme === 'dark' : themeMode === 'dark';
 
-  const colors = {
-    bg: isDark ? '#0a0f1c' : '#f8fafc',
-    card: isDark ? '#111827' : '#ffffff',
-    border: isDark ? '#1e293b' : '#e2e8f0',
-    text: isDark ? '#f8fafc' : '#0f172a',
-    textMuted: isDark ? '#94a3b8' : '#64748b',
+  // Tokens de Cor Oficiais shadcn Mobile
+  const colors: ThemeColors = {
+    bg: isDark ? '#09090b' : '#fafafa',
+    card: isDark ? '#121215' : '#ffffff',
+    mutedSurface: isDark ? '#18181b' : '#f4f4f5',
+    border: isDark ? '#27272a' : '#e4e4e7',
+    text: isDark ? '#f4f4f5' : '#09090b',
+    textMuted: isDark ? '#a1a1aa' : '#71717a',
     brand: '#0ea5e9',
     brandActive: '#0284c7',
     brandDark: '#082f49',
+    brandSubtle: isDark ? 'rgba(14, 165, 233, 0.14)' : 'rgba(14, 165, 233, 0.10)',
+    success: '#10b981',
+    warning: '#f59e0b',
+    danger: '#f43f5e',
   };
 
   return (

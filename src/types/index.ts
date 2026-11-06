@@ -8,12 +8,14 @@ export interface Company {
   domain?: string | null;
   plan: string;
   plan_status?: string | null;
-  business_type?: 'agency' | 'solo_broker' | null;
+  business_type?: 'agency' | 'solo_broker' | string | null;
   logo_url?: string | null;
+  admin_signature_url?: string | null;
   default_commission?: number | null;
   broker_commission?: number | null;
   phone?: string | null;
   email?: string | null;
+  finance_config?: any;
 }
 
 export interface Profile {
@@ -24,18 +26,38 @@ export interface Profile {
   phone?: string | null;
   role: AppUserRole;
   creci?: string | null;
+  document?: string | null;
+  cpf_cnpj?: string | null;
   avatar_url?: string | null;
+  signature_url?: string | null;
+  pix_key?: string | null;
+  pix_type?: string | null;
+  bank_name?: string | null;
+  bank_agency?: string | null;
+  bank_account?: string | null;
+  bank_info?: any;
+  permissions?: any;
   level: number;
   level_title: string;
   xp_points: number;
   active: boolean;
-  pix_key?: string | null;
+}
+
+export interface AppSettings {
+  id: number;
+  company_id?: string | null;
+  route_to_central?: boolean;
+  central_user_id?: string | null;
+  central_whatsapp?: string | null;
+  kanban_config?: any;
+  permissions?: any;
 }
 
 export interface Property {
   id: string;
+  company_id?: string | null;
   title: string;
-  slug: string;
+  slug?: string;
   price: number;
   type: string;
   listing_type?: 'sale' | 'rent' | 'temporada' | string;
@@ -43,12 +65,30 @@ export interface Property {
   city: string;
   neighborhood: string;
   state: string;
+  address?: string | null;
+  street?: string | null;
+  number?: string | null;
+  zip_code?: string | null;
   bedrooms: number;
+  suites?: number | null;
   bathrooms: number;
   area: number;
+  built_area?: number | null;
   garage: number;
+  condo_fee?: number | null;
+  iptu_fee?: number | null;
   images?: string[];
   featured?: boolean;
+  description?: string | null;
+  amenities?: string[] | null;
+  owner_name?: string | null;
+  owner_cpf_cnpj?: string | null;
+  owner_phone?: string | null;
+  owner_email?: string | null;
+  owner_pix_type?: string | null;
+  owner_pix_key?: string | null;
+  owner_civil_status?: string | null;
+  has_intermediation_signed?: boolean;
   created_at?: string;
   agent_id?: string | null;
 }
@@ -69,14 +109,27 @@ export interface Lead {
   loss_reason?: string | null;
   last_interaction?: string | null;
   stage_updated_at?: string | null;
+  updated_at?: string | null;
   assigned_to?: string | null;
   created_at: string;
   message?: string | null;
+  notes?: string | null;
+  property_title?: string | null;
+  desired_type?: string | null;
+  desired_bedrooms?: number | null;
+  desired_location?: string | null;
+  interested_properties?: string[] | null;
+  navigation_data?: any;
+  lead_score?: number | null;
   property_id?: string | null;
   properties?: {
     id: string;
     title: string;
     price?: number | null;
+    city?: string | null;
+    neighborhood?: string | null;
+    bedrooms?: number | null;
+    type?: string | null;
   } | null;
   assigned_profile?: {
     id: string;
@@ -84,11 +137,26 @@ export interface Lead {
     avatar_url?: string | null;
     phone?: string | null;
   } | null;
+  assigned_user?: {
+    id: string;
+    name?: string | null;
+    avatar_url?: string | null;
+    phone?: string | null;
+  } | null;
+}
+
+export interface LeadMatch {
+  id: string;
+  lead_id: string;
+  property_id: string;
+  match_score?: number;
+  match_reason?: string | null;
 }
 
 export interface TimelineEvent {
   id: string;
   created_at: string;
+  title?: string;
   type: 'status_change' | 'note' | 'call_log' | 'whatsapp' | string;
   description: string;
   metadata?: any;
@@ -100,6 +168,96 @@ export interface TimelineEvent {
     name?: string | null;
     avatar_url?: string | null;
   } | null;
+}
+
+export interface Task {
+  id: string;
+  created_at: string;
+  title: string;
+  description?: string | null;
+  due_date?: string | null;
+  completed: boolean;
+  type?: string | null;
+  lead_id?: string | null;
+  user_id?: string | null;
+  status?: string | null;
+  priority?: string | null;
+  company_id?: string | null;
+}
+
+export interface ContractSignature {
+  id: string;
+  contract_id: string;
+  company_id?: string | null;
+  signer_name: string;
+  signer_email?: string | null;
+  signer_phone?: string | null;
+  signer_document?: string | null;
+  signer_role: string;
+  token?: string | null;
+  status: 'pending' | 'signed' | 'refused' | string;
+  signed_at?: string | null;
+  signature_image?: string | null;
+  created_at: string;
+}
+
+export interface Contract {
+  id: string;
+  lead_id?: string | null;
+  property_id?: string | null;
+  broker_id?: string | null;
+  company_id?: string | null;
+  type: 'venda' | 'locacao' | 'intermediacao' | 'administracao' | string;
+  status: 'draft' | 'pending' | 'active' | 'signed' | 'canceled' | string;
+  start_date?: string | null;
+  end_date?: string | null;
+  sale_total_value?: number | null;
+  sale_down_payment?: number | null;
+  rent_value?: number | null;
+  condo_value?: number | null;
+  iptu_value?: number | null;
+  commission_total?: number | null;
+  notes?: string | null;
+  content?: string | null;
+  html_content?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  property?: {
+    id: string;
+    title: string;
+    price?: number | null;
+    city?: string | null;
+    neighborhood?: string | null;
+  } | null;
+  lead?: {
+    id: string;
+    name: string;
+    phone?: string | null;
+    email?: string | null;
+    cpf_cnpj?: string | null;
+  } | null;
+  broker?: {
+    id: string;
+    name: string;
+    avatar_url?: string | null;
+    creci?: string | null;
+  } | null;
+  signatures?: ContractSignature[];
+}
+
+export interface NotificationItem {
+  id: string;
+  user_id: string;
+  company_id?: string | null;
+  title: string;
+  message: string;
+  content?: string | null;
+  type: string;
+  category?: 'system' | 'team' | 'leads' | 'contracts' | string | null;
+  read: boolean;
+  link?: string | null;
+  created_at: string;
 }
 
 export interface AgentCommission {
@@ -119,6 +277,7 @@ export interface Invoice {
   id: string;
   company_id: string;
   client_name: string;
+  description?: string | null;
   amount: number;
   due_date: string;
   status: 'pendente' | 'pago' | 'atrasado' | 'cancelado' | string;

@@ -14,29 +14,30 @@ module.exports = {
           600: '#0284c7', // Interação / Press
           700: '#0369a1',
           900: '#0c4a6e',
-          950: '#082f49', // Fundo Institucional Profundo
+          950: '#082f49',
         },
         dark: {
-          bg: '#0a0f1c',      // Fundo escuro principal
-          card: '#111827',    // Superfície dos cards
-          border: '#1e293b',
-          text: '#f8fafc',
-          muted: '#94a3b8',
+          bg: '#09090b',          // Zinc 950
+          card: '#121215',        // Zinc 900 custom surface
+          mutedSurface: '#18181b',// Zinc 900
+          border: '#27272a',      // Zinc 800
+          text: '#f4f4f5',        // Zinc 100
+          muted: '#a1a1aa',       // Zinc 400
         },
         light: {
-          bg: '#f8fafc',      // Fundo claro principal
-          card: '#ffffff',    // Cards brancos
-          border: '#e2e8f0',
-          text: '#0f172a',
-          muted: '#64748b',
+          bg: '#fafafa',          // Zinc 50
+          card: '#ffffff',        // White
+          mutedSurface: '#f4f4f5',// Zinc 100
+          border: '#e4e4e7',      // Zinc 200
+          text: '#09090b',        // Zinc 950
+          muted: '#71717a',       // Zinc 500
+        },
+        semantic: {
+          success: '#10b981',
+          warning: '#f59e0b',
+          danger: '#f43f5e',
         }
       },
-      fontFamily: {
-        sora: ['Sora_400Regular'],
-        'sora-semibold': ['Sora_600SemiBold'],
-        'sora-bold': ['Sora_700Bold'],
-        'sora-extrabold': ['Sora_800ExtraBold'],
-      }
     },
   },
   plugins: [],

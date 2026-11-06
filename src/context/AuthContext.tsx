@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { AppUserRole, Company, Profile } from '../types';
+import { AppSettings, AppUserRole, Company, Profile } from '../types';
+import { getPermissions } from '../lib/permissions';
 
 export interface UserWithProfile extends User {
   profile?: Profile | null;
@@ -13,6 +14,8 @@ interface AuthContextType {
   user: UserWithProfile | null;
   profile: Profile | null;
   company: Company | null;
+  settings: AppSettings | null;
+  permissions: ReturnType<typeof getPermissions>;
   loading: boolean;
   isOwner: boolean;
   isAdmin: boolean;
@@ -31,10 +34,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserWithProfile | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
+  const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfileAndCompany = async (authUser: User): Promise<UserWithProfile> => {
     try {
+      // 1. Carrega o perfil completo
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
@@ -45,21 +50,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(activeProfile);
 
       let activeCompany: Company | null = null;
+      let activeSettings: AppSettings | null = null;
+
       if (activeProfile?.company_id) {
+        // 2. Carrega a imobiliária
         const { data: companyData } = await supabase
           .from('companies')
-          .select('id, name, subdomain, domain, plan, plan_status, business_type, logo_url, default_commission, broker_commission, phone, email')
+          .select('*')
           .eq('id', activeProfile.company_id)
           .maybeSingle();
 
         activeCompany = (companyData as Company) || null;
+
+        // 3. Carrega as configurações da empresa (kanban_config, permissions, route_to_central)
+        const { data: settingsData } = await supabase
+          .from('settings')
+          .select('*')
+          .eq('company_id', activeProfile.company_id)
+          .maybeSingle();
+
+        activeSettings = (settingsData as AppSettings) || null;
       }
+
       setCompany(activeCompany);
+      setSettings(activeSettings);
 
       const combined: UserWithProfile = { ...authUser, profile: activeProfile, company: activeCompany };
       setUser(combined);
       return combined;
     } catch (err) {
+      console.warn('Erro ao carregar dados do usuário/empresa:', err);
       const fallback: UserWithProfile = { ...authUser, profile: null, company: null };
       setUser(fallback);
       return fallback;
@@ -86,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null);
         setProfile(null);
         setCompany(null);
+        setSettings(null);
       }
       setLoading(false);
     });
@@ -104,10 +125,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password,
         options: captchaToken ? { captchaToken } : undefined,
       });
+
       if (error) {
-        console.warn('[Auth] Erro no Supabase signInWithPassword:', error.message, error);
+        console.warn('[Auth] Erro no Supabase signInWithPassword:', error.message);
         return { error: new Error(error.message) };
       }
+
       if (data.session?.user) {
         console.log('[Auth] Sessão autenticada com sucesso, carregando perfil...');
         setSession(data.session);
@@ -130,6 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setProfile(null);
       setCompany(null);
+      setSettings(null);
       setLoading(false);
     }
   };
@@ -139,12 +163,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (s?.user) await fetchProfileAndCompany(s.user);
   };
 
+  const permissions = getPermissions({ profile, company, settings });
+
   const userRole: AppUserRole = profile?.role || 'corretor';
-  const isOwner = ['owner', 'super_admin'].includes(userRole);
-  const isAdmin = ['owner', 'admin', 'super_admin'].includes(userRole);
-  const isManager = ['manager', 'admin', 'owner', 'super_admin'].includes(userRole);
+  const isOwner = permissions.isSuperOrOwner;
+  const isAdmin = permissions.isSuperOrOwner || userRole === 'admin';
+  const isManager = permissions.isSuperOrOwner || permissions.isManagerOrAdmin;
   const isCorretor = userRole === 'corretor';
-  const isSoloBroker = company?.business_type === 'solo_broker';
+  const isSoloBroker = permissions.isSoloBroker;
 
   return (
     <AuthContext.Provider
@@ -153,6 +179,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         profile,
         company,
+        settings,
+        permissions,
         loading,
         isOwner,
         isAdmin,

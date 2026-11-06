@@ -2,13 +2,6 @@ import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import {
-  useFonts,
-  Sora_400Regular,
-  Sora_600SemiBold,
-  Sora_700Bold,
-  Sora_800ExtraBold,
-} from '@expo-google-fonts/sora';
 import { ThemeProvider, useAppTheme } from '../context/ThemeContext';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import '../../global.css';
@@ -50,21 +43,6 @@ function RootNavigation() {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
-    Sora_400Regular,
-    Sora_600SemiBold,
-    Sora_700Bold,
-    Sora_800ExtraBold,
-  });
-
-  if (!fontsLoaded) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#0a0f1c', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color="#0ea5e9" />
-      </View>
-    );
-  }
-
   return (
     <ThemeProvider>
       <AuthProvider>
