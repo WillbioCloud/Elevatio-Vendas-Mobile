@@ -1,0 +1,47 @@
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json.bak
+
+# Expo
+.expo/
+dist/
+dist_*/
+web-build/
+
+# Environment files (Mantenha suas chaves seguras!)
+.env
+.env*.local
+!.env.example
+
+# Native builds & keystores
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro & Bundler
+.metro-health-check*
+
+# OS metadata
+.DS_Store
+Thumbs.db
+*.pem
+
+# IDE & Editor files
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
