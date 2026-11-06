@@ -33,7 +33,7 @@ const THEME_STORAGE_KEY = '@elevatio_theme_mode';
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const deviceColorScheme = useDeviceColorScheme();
-  const [themeMode, setThemeModeState] = useState<ThemeMode>('dark'); // Padrão Premium Dark shadcn
+  const [themeMode, setThemeModeState] = useState<ThemeMode>('system'); // Padrão Sistema automático (respeita iOS/Android)
 
   useEffect(() => {
     (async () => {

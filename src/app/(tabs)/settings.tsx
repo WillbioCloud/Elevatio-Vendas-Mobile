@@ -260,7 +260,7 @@ export default function SettingsScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 52, paddingBottom: 40 }}
+      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 52, paddingBottom: 110 }}
     >
       <Text style={{ fontSize: 22, fontWeight: '700', color: colors.text, marginBottom: 16 }}>
         Configurações
@@ -590,7 +590,7 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Seção 3: Aparência (Tema Claro / Escuro) */}
+          {/* Seção 3: Aparência (Tema Escuro / Claro / Sistema) */}
           <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textMuted, marginBottom: 8, textTransform: 'uppercase' }}>
             Aparência
           </Text>
@@ -618,18 +618,18 @@ export default function SettingsScreen() {
                 backgroundColor: themeMode === 'dark' ? colors.mutedSurface : 'transparent',
                 borderWidth: themeMode === 'dark' ? 1 : 0,
                 borderColor: colors.border,
-                gap: 6,
+                gap: 5,
               }}
             >
-              <Moon size={15} color={themeMode === 'dark' ? '#0ea5e9' : colors.textMuted} />
+              <Moon size={14} color={themeMode === 'dark' ? '#0ea5e9' : colors.textMuted} />
               <Text
                 style={{
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: themeMode === 'dark' ? '700' : '500',
                   color: themeMode === 'dark' ? '#0ea5e9' : colors.textMuted,
                 }}
               >
-                Escuro (Zinc)
+                Escuro
               </Text>
             </TouchableOpacity>
 
@@ -645,18 +645,45 @@ export default function SettingsScreen() {
                 backgroundColor: themeMode === 'light' ? colors.mutedSurface : 'transparent',
                 borderWidth: themeMode === 'light' ? 1 : 0,
                 borderColor: colors.border,
-                gap: 6,
+                gap: 5,
               }}
             >
-              <Sun size={15} color={themeMode === 'light' ? '#0ea5e9' : colors.textMuted} />
+              <Sun size={14} color={themeMode === 'light' ? '#0ea5e9' : colors.textMuted} />
               <Text
                 style={{
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: themeMode === 'light' ? '700' : '500',
                   color: themeMode === 'light' ? '#0ea5e9' : colors.textMuted,
                 }}
               >
-                Claro (Zinc)
+                Claro
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setThemeMode('system')}
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingVertical: 10,
+                borderRadius: 10,
+                backgroundColor: themeMode === 'system' ? colors.mutedSurface : 'transparent',
+                borderWidth: themeMode === 'system' ? 1 : 0,
+                borderColor: colors.border,
+                gap: 5,
+              }}
+            >
+              <Smartphone size={14} color={themeMode === 'system' ? '#0ea5e9' : colors.textMuted} />
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: themeMode === 'system' ? '700' : '500',
+                  color: themeMode === 'system' ? '#0ea5e9' : colors.textMuted,
+                }}
+              >
+                Sistema
               </Text>
             </TouchableOpacity>
           </View>

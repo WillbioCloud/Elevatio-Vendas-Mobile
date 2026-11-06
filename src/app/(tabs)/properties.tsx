@@ -5,6 +5,7 @@ import {
   FlatList,
   Image,
   Linking,
+  Modal,
   RefreshControl,
   ScrollView,
   Share,
@@ -19,6 +20,7 @@ import {
   Bed,
   Building2,
   Car,
+  Check,
   Eye,
   EyeOff,
   Filter,
@@ -27,9 +29,11 @@ import {
   MessageCircle,
   Pencil,
   Plus,
+  RotateCcw,
   Search,
   Share2,
   ShieldCheck,
+  SlidersHorizontal,
   Star,
   UserCheck,
   X,
@@ -63,6 +67,69 @@ export default function PropertiesScreen() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [onlyMyProperties, setOnlyMyProperties] = useState(false);
+
+  // Modal e Filtros Avançados
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
+  const [sortBy, setSortBy] = useState<'recent' | 'price_asc' | 'price_desc' | 'area_desc'>('recent');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [selectedType, setSelectedType] = useState('Todos');
+  const [minBedrooms, setMinBedrooms] = useState<number>(0);
+  const [minSuites, setMinSuites] = useState<number>(0);
+  const [minBathrooms, setMinBathrooms] = useState<number>(0);
+  const [minGarage, setMinGarage] = useState<number>(0);
+  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState('');
+
+  const availableCities = useMemo(() => {
+    return Array.from(new Set(properties.map((p) => p.city).filter(Boolean))).sort() as string[];
+  }, [properties]);
+
+  const availableNeighborhoods = useMemo(() => {
+    const list = selectedCity
+      ? properties.filter((p) => (p.city || '').toLowerCase() === selectedCity.toLowerCase())
+      : properties;
+    return Array.from(new Set(list.map((p) => p.neighborhood).filter(Boolean))).sort() as string[];
+  }, [properties, selectedCity]);
+
+  const activeAdvancedFiltersCount = useMemo(() => {
+    let count = 0;
+    if (sortBy !== 'recent') count++;
+    if (minPrice && parseFloat(minPrice.replace(/\D/g, '')) > 0) count++;
+    if (maxPrice && parseFloat(maxPrice.replace(/\D/g, '')) > 0) count++;
+    if (selectedType && selectedType !== 'Todos') count++;
+    if (minBedrooms > 0) count++;
+    if (minSuites > 0) count++;
+    if (minBathrooms > 0) count++;
+    if (minGarage > 0) count++;
+    if (selectedCity) count++;
+    if (selectedNeighborhood) count++;
+    return count;
+  }, [
+    sortBy,
+    minPrice,
+    maxPrice,
+    selectedType,
+    minBedrooms,
+    minSuites,
+    minBathrooms,
+    minGarage,
+    selectedCity,
+    selectedNeighborhood,
+  ]);
+
+  const handleResetFilters = () => {
+    setSortBy('recent');
+    setMinPrice('');
+    setMaxPrice('');
+    setSelectedType('Todos');
+    setMinBedrooms(0);
+    setMinSuites(0);
+    setMinBathrooms(0);
+    setMinGarage(0);
+    setSelectedCity('');
+    setSelectedNeighborhood('');
+  };
 
   const fetchProperties = useCallback(async () => {
     try {
@@ -162,9 +229,9 @@ export default function PropertiesScreen() {
     }
   };
 
-  // Filtros combinados
+  // Filtros combinados e ordenação
   const filteredProperties = useMemo(() => {
-    return properties.filter((item) => {
+    const list = properties.filter((item) => {
       // Filtro de dono (apenas meus imóveis)
       if (onlyMyProperties && item.agent_id !== user?.id) {
         return false;
@@ -177,15 +244,82 @@ export default function PropertiesScreen() {
       if (activeFilter === 'legal_pending' && item.has_intermediation_signed) return false;
       if (activeFilter === 'inactive' && item.status === 'Disponível') return false;
 
-      // Filtro de busca
-      if (!search.trim()) return true;
-      const q = search.toLowerCase().trim();
-      const matchTitle = (item.title || '').toLowerCase().includes(q);
-      const matchCity = (item.city || '').toLowerCase().includes(q);
-      const matchNeigh = (item.neighborhood || '').toLowerCase().includes(q);
-      return matchTitle || matchCity || matchNeigh;
+      // Filtro de busca textual
+      if (search.trim()) {
+        const q = search.toLowerCase().trim();
+        const matchTitle = (item.title || '').toLowerCase().includes(q);
+        const matchCity = (item.city || '').toLowerCase().includes(q);
+        const matchNeigh = (item.neighborhood || '').toLowerCase().includes(q);
+        if (!matchTitle && !matchCity && !matchNeigh) return false;
+      }
+
+      // Preço Mínimo
+      if (minPrice) {
+        const minVal = parseFloat(minPrice.replace(/\D/g, ''));
+        if (!isNaN(minVal) && minVal > 0 && (item.price || 0) < minVal) return false;
+      }
+
+      // Preço Máximo
+      if (maxPrice) {
+        const maxVal = parseFloat(maxPrice.replace(/\D/g, ''));
+        if (!isNaN(maxVal) && maxVal > 0 && (item.price || 0) > maxVal) return false;
+      }
+
+      // Tipo de Imóvel
+      if (selectedType && selectedType !== 'Todos') {
+        if ((item.type || '').toLowerCase() !== selectedType.toLowerCase()) return false;
+      }
+
+      // Quartos
+      if (minBedrooms > 0 && (item.bedrooms || 0) < minBedrooms) return false;
+
+      // Suítes
+      if (minSuites > 0 && (item.suites || 0) < minSuites) return false;
+
+      // Banheiros
+      if (minBathrooms > 0 && (item.bathrooms || 0) < minBathrooms) return false;
+
+      // Garagem
+      if (minGarage > 0 && (item.garage || 0) < minGarage) return false;
+
+      // Cidade
+      if (selectedCity && (item.city || '').toLowerCase() !== selectedCity.toLowerCase()) return false;
+
+      // Bairro
+      if (
+        selectedNeighborhood &&
+        (item.neighborhood || '').toLowerCase() !== selectedNeighborhood.toLowerCase()
+      ) {
+        return false;
+      }
+
+      return true;
     });
-  }, [properties, activeFilter, onlyMyProperties, search, user?.id]);
+
+    // Ordenação
+    return list.sort((a, b) => {
+      if (sortBy === 'price_asc') return (a.price || 0) - (b.price || 0);
+      if (sortBy === 'price_desc') return (b.price || 0) - (a.price || 0);
+      if (sortBy === 'area_desc') return (b.area || 0) - (a.area || 0);
+      return new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime();
+    });
+  }, [
+    properties,
+    activeFilter,
+    onlyMyProperties,
+    search,
+    user?.id,
+    minPrice,
+    maxPrice,
+    selectedType,
+    minBedrooms,
+    minSuites,
+    minBathrooms,
+    minGarage,
+    selectedCity,
+    selectedNeighborhood,
+    sortBy,
+  ]);
 
   const activeCount = properties.filter((p) => p.status === 'Disponível').length;
 
@@ -196,7 +330,7 @@ export default function PropertiesScreen() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
             <Text style={{ fontSize: 22, fontWeight: '700', color: colors.text }}>
-              Imóveis & Carteira
+              Imóveis
             </Text>
             <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
               {activeCount} ativos • {properties.length} no catálogo
@@ -225,33 +359,79 @@ export default function PropertiesScreen() {
           )}
         </View>
 
-        {/* Barra de Busca Instantânea */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: colors.card,
-            borderRadius: 12,
-            paddingHorizontal: 12,
-            height: 44,
-            marginTop: 14,
-            borderWidth: 1,
-            borderColor: colors.border,
-          }}
-        >
-          <Search size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Buscar por título, bairro ou cidade..."
-            placeholderTextColor={colors.textMuted}
-            style={{ flex: 1, fontSize: 13, color: colors.text }}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <X size={15} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
+        {/* Barra de Busca + Botão Filtros Avançados */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 }}>
+          <View
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: colors.card,
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              height: 44,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <Search size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Buscar por título, bairro ou cidade..."
+              placeholderTextColor={colors.textMuted}
+              style={{ flex: 1, fontSize: 13, color: colors.text }}
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <X size={15} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Botão de Filtro com Badge */}
+          <TouchableOpacity
+            onPress={() => setShowFiltersModal(true)}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              backgroundColor: activeAdvancedFiltersCount > 0 ? '#0ea5e9' : colors.card,
+              borderWidth: 1,
+              borderColor: activeAdvancedFiltersCount > 0 ? '#0ea5e9' : colors.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative',
+            }}
+            activeOpacity={0.8}
+          >
+            <SlidersHorizontal
+              size={18}
+              color={activeAdvancedFiltersCount > 0 ? '#ffffff' : colors.text}
+            />
+            {activeAdvancedFiltersCount > 0 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: -4,
+                  right: -4,
+                  backgroundColor: '#ef4444',
+                  minWidth: 18,
+                  height: 18,
+                  borderRadius: 9,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: 4,
+                  borderWidth: 2,
+                  borderColor: colors.bg,
+                }}
+              >
+                <Text style={{ fontSize: 10, fontWeight: '700', color: '#ffffff' }}>
+                  {activeAdvancedFiltersCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -338,7 +518,7 @@ export default function PropertiesScreen() {
         <FlatList
           data={filteredProperties}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 110 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0ea5e9" />}
           ListEmptyComponent={
             <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 60 }}>
@@ -659,6 +839,621 @@ export default function PropertiesScreen() {
           }}
         />
       )}
+
+      {/* MODAL / BOTTOMSHEET DE FILTROS AVANÇADOS */}
+      <Modal visible={showFiltersModal} transparent animationType="slide">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              maxHeight: '88%',
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            {/* Header do Modal */}
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingHorizontal: 20,
+                paddingTop: 18,
+                paddingBottom: 14,
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <SlidersHorizontal size={18} color="#0ea5e9" />
+                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
+                  Filtros Avançados
+                </Text>
+                {activeAdvancedFiltersCount > 0 && (
+                  <View
+                    style={{
+                      backgroundColor: '#0ea5e9',
+                      paddingHorizontal: 7,
+                      paddingVertical: 2,
+                      borderRadius: 10,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#ffffff' }}>
+                      {activeAdvancedFiltersCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <TouchableOpacity onPress={() => setShowFiltersModal(false)} activeOpacity={0.7}>
+                <X size={20} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Conteúdo com Scroll */}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20 }}
+            >
+              {/* 1. Ordenação */}
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 8 }}>
+                Ordenar Imóveis Por
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
+                {[
+                  { id: 'recent', label: 'Mais Recentes' },
+                  { id: 'price_asc', label: 'Menor Preço' },
+                  { id: 'price_desc', label: 'Maior Preço' },
+                  { id: 'area_desc', label: 'Maior Área (m²)' },
+                ].map((sortItem) => {
+                  const isSelected = sortBy === sortItem.id;
+                  return (
+                    <TouchableOpacity
+                      key={sortItem.id}
+                      onPress={() => setSortBy(sortItem.id as any)}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 7,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: isSelected ? '#0ea5e9' : colors.border,
+                        backgroundColor: isSelected
+                          ? isDark
+                            ? 'rgba(14, 165, 233, 0.2)'
+                            : '#e0f2fe'
+                          : colors.mutedSurface,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: isSelected ? '700' : '500',
+                          color: isSelected ? '#0ea5e9' : colors.text,
+                        }}
+                      >
+                        {sortItem.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* 2. Faixa de Preço */}
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 8 }}>
+                Faixa de Preço (R$)
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 4 }}>
+                    Preço Mínimo
+                  </Text>
+                  <TextInput
+                    value={minPrice}
+                    onChangeText={setMinPrice}
+                    placeholder="Ex: 250000"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="numeric"
+                    style={{
+                      backgroundColor: colors.mutedSurface,
+                      borderRadius: 10,
+                      padding: 10,
+                      fontSize: 13,
+                      color: colors.text,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                    }}
+                  />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 4 }}>
+                    Preço Máximo
+                  </Text>
+                  <TextInput
+                    value={maxPrice}
+                    onChangeText={setMaxPrice}
+                    placeholder="Ex: 800000"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="numeric"
+                    style={{
+                      backgroundColor: colors.mutedSurface,
+                      borderRadius: 10,
+                      padding: 10,
+                      fontSize: 13,
+                      color: colors.text,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                    }}
+                  />
+                </View>
+              </View>
+
+              {/* Atalhos Rápidos de Preço */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
+                {[
+                  { label: 'Até R$ 300 mil', min: '', max: '300000' },
+                  { label: 'R$ 300k a R$ 600k', min: '300000', max: '600000' },
+                  { label: 'R$ 600k a R$ 1M', min: '600000', max: '1000000' },
+                  { label: 'Acima de R$ 1M', min: '1000000', max: '' },
+                ].map((shortcut) => {
+                  const isMatch = minPrice === shortcut.min && maxPrice === shortcut.max;
+                  return (
+                    <TouchableOpacity
+                      key={shortcut.label}
+                      onPress={() => {
+                        setMinPrice(shortcut.min);
+                        setMaxPrice(shortcut.max);
+                      }}
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                        borderRadius: 6,
+                        borderWidth: 1,
+                        borderColor: isMatch ? '#0ea5e9' : colors.border,
+                        backgroundColor: isMatch
+                          ? isDark
+                            ? 'rgba(14, 165, 233, 0.15)'
+                            : '#e0f2fe'
+                          : colors.mutedSurface,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: isMatch ? '700' : '500',
+                          color: isMatch ? '#0ea5e9' : colors.textMuted,
+                        }}
+                      >
+                        {shortcut.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* 3. Tipo de Imóvel */}
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 8 }}>
+                Tipo de Imóvel
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
+                {[
+                  'Todos',
+                  'Apartamento',
+                  'Casa',
+                  'Condomínio',
+                  'Cobertura',
+                  'Terreno',
+                  'Comercial',
+                  'Rural',
+                ].map((type) => {
+                  const isSelected = selectedType.toLowerCase() === type.toLowerCase();
+                  return (
+                    <TouchableOpacity
+                      key={type}
+                      onPress={() => setSelectedType(type)}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 7,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: isSelected ? '#0ea5e9' : colors.border,
+                        backgroundColor: isSelected
+                          ? isDark
+                            ? 'rgba(14, 165, 233, 0.2)'
+                            : '#e0f2fe'
+                          : colors.mutedSurface,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: isSelected ? '700' : '500',
+                          color: isSelected ? '#0ea5e9' : colors.text,
+                        }}
+                      >
+                        {type}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* 4. Quartos Mínimos */}
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 8 }}>
+                Quartos
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
+                {[
+                  { value: 0, label: 'Todos' },
+                  { value: 1, label: '1+' },
+                  { value: 2, label: '2+' },
+                  { value: 3, label: '3+' },
+                  { value: 4, label: '4+' },
+                ].map((opt) => {
+                  const isSelected = minBedrooms === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.label}
+                      onPress={() => setMinBedrooms(opt.value)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 8,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: isSelected ? '#0ea5e9' : colors.border,
+                        backgroundColor: isSelected
+                          ? isDark
+                            ? 'rgba(14, 165, 233, 0.2)'
+                            : '#e0f2fe'
+                          : colors.mutedSurface,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: isSelected ? '700' : '500',
+                          color: isSelected ? '#0ea5e9' : colors.text,
+                        }}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* 5. Suítes Mínimas */}
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 8 }}>
+                Suítes
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
+                {[
+                  { value: 0, label: 'Todos' },
+                  { value: 1, label: '1+' },
+                  { value: 2, label: '2+' },
+                  { value: 3, label: '3+' },
+                ].map((opt) => {
+                  const isSelected = minSuites === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.label}
+                      onPress={() => setMinSuites(opt.value)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 8,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: isSelected ? '#0ea5e9' : colors.border,
+                        backgroundColor: isSelected
+                          ? isDark
+                            ? 'rgba(14, 165, 233, 0.2)'
+                            : '#e0f2fe'
+                          : colors.mutedSurface,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: isSelected ? '700' : '500',
+                          color: isSelected ? '#0ea5e9' : colors.text,
+                        }}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* 6. Banheiros Mínimos */}
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 8 }}>
+                Banheiros
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
+                {[
+                  { value: 0, label: 'Todos' },
+                  { value: 1, label: '1+' },
+                  { value: 2, label: '2+' },
+                  { value: 3, label: '3+' },
+                ].map((opt) => {
+                  const isSelected = minBathrooms === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.label}
+                      onPress={() => setMinBathrooms(opt.value)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 8,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: isSelected ? '#0ea5e9' : colors.border,
+                        backgroundColor: isSelected
+                          ? isDark
+                            ? 'rgba(14, 165, 233, 0.2)'
+                            : '#e0f2fe'
+                          : colors.mutedSurface,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: isSelected ? '700' : '500',
+                          color: isSelected ? '#0ea5e9' : colors.text,
+                        }}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* 7. Vagas de Garagem */}
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 8 }}>
+                Vagas de Garagem
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
+                {[
+                  { value: 0, label: 'Todos' },
+                  { value: 1, label: '1+' },
+                  { value: 2, label: '2+' },
+                  { value: 3, label: '3+' },
+                ].map((opt) => {
+                  const isSelected = minGarage === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.label}
+                      onPress={() => setMinGarage(opt.value)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 8,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: isSelected ? '#0ea5e9' : colors.border,
+                        backgroundColor: isSelected
+                          ? isDark
+                            ? 'rgba(14, 165, 233, 0.2)'
+                            : '#e0f2fe'
+                          : colors.mutedSurface,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: isSelected ? '700' : '500',
+                          color: isSelected ? '#0ea5e9' : colors.text,
+                        }}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* 8. Cidades */}
+              {availableCities.length > 0 && (
+                <>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 8 }}>
+                    Cidade
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSelectedCity('');
+                        setSelectedNeighborhood('');
+                      }}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 7,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: selectedCity === '' ? '#0ea5e9' : colors.border,
+                        backgroundColor: selectedCity === ''
+                          ? isDark
+                            ? 'rgba(14, 165, 233, 0.2)'
+                            : '#e0f2fe'
+                          : colors.mutedSurface,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: selectedCity === '' ? '700' : '500',
+                          color: selectedCity === '' ? '#0ea5e9' : colors.text,
+                        }}
+                      >
+                        Todas
+                      </Text>
+                    </TouchableOpacity>
+                    {availableCities.map((city) => {
+                      const isSelected = selectedCity.toLowerCase() === city.toLowerCase();
+                      return (
+                        <TouchableOpacity
+                          key={city}
+                          onPress={() => {
+                            setSelectedCity(isSelected ? '' : city);
+                            setSelectedNeighborhood('');
+                          }}
+                          style={{
+                            paddingHorizontal: 12,
+                            paddingVertical: 7,
+                            borderRadius: 8,
+                            borderWidth: 1,
+                            borderColor: isSelected ? '#0ea5e9' : colors.border,
+                            backgroundColor: isSelected
+                              ? isDark
+                                ? 'rgba(14, 165, 233, 0.2)'
+                                : '#e0f2fe'
+                              : colors.mutedSurface,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              fontWeight: isSelected ? '700' : '500',
+                              color: isSelected ? '#0ea5e9' : colors.text,
+                            }}
+                          >
+                            {city}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
+
+              {/* 9. Bairros */}
+              {availableNeighborhoods.length > 0 && (
+                <>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 8 }}>
+                    Bairro
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
+                    <TouchableOpacity
+                      onPress={() => setSelectedNeighborhood('')}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 7,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: selectedNeighborhood === '' ? '#0ea5e9' : colors.border,
+                        backgroundColor: selectedNeighborhood === ''
+                          ? isDark
+                            ? 'rgba(14, 165, 233, 0.2)'
+                            : '#e0f2fe'
+                          : colors.mutedSurface,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: selectedNeighborhood === '' ? '700' : '500',
+                          color: selectedNeighborhood === '' ? '#0ea5e9' : colors.text,
+                        }}
+                      >
+                        Todos
+                      </Text>
+                    </TouchableOpacity>
+                    {availableNeighborhoods.map((neigh) => {
+                      const isSelected = selectedNeighborhood.toLowerCase() === neigh.toLowerCase();
+                      return (
+                        <TouchableOpacity
+                          key={neigh}
+                          onPress={() => setSelectedNeighborhood(isSelected ? '' : neigh)}
+                          style={{
+                            paddingHorizontal: 12,
+                            paddingVertical: 7,
+                            borderRadius: 8,
+                            borderWidth: 1,
+                            borderColor: isSelected ? '#0ea5e9' : colors.border,
+                            backgroundColor: isSelected
+                              ? isDark
+                                ? 'rgba(14, 165, 233, 0.2)'
+                                : '#e0f2fe'
+                              : colors.mutedSurface,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              fontWeight: isSelected ? '700' : '500',
+                              color: isSelected ? '#0ea5e9' : colors.text,
+                            }}
+                          >
+                            {neigh}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
+            </ScrollView>
+
+            {/* Rodapé Fixo */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                paddingHorizontal: 20,
+                paddingVertical: 14,
+                borderTopWidth: 1,
+                borderTopColor: colors.border,
+                backgroundColor: colors.card,
+              }}
+            >
+              <TouchableOpacity
+                onPress={handleResetFilters}
+                style={{
+                  flex: 1,
+                  paddingVertical: 13,
+                  borderRadius: 12,
+                  backgroundColor: colors.mutedSurface,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>
+                  Limpar Filtros
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setShowFiltersModal(false)}
+                style={{
+                  flex: 2,
+                  paddingVertical: 13,
+                  borderRadius: 12,
+                  backgroundColor: '#0ea5e9',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#ffffff' }}>
+                  Ver {filteredProperties.length} {filteredProperties.length === 1 ? 'imóvel' : 'imóveis'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

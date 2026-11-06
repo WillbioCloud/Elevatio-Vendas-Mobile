@@ -376,7 +376,7 @@ export default function FinanceScreen() {
       {!canViewAllFinance ? (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 110 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0ea5e9" />}
         >
           {/* Card Principal de Comissões Recebidas */}
@@ -596,7 +596,7 @@ export default function FinanceScreen() {
           {/* Conteúdo da Aba Selecionada */}
           <ScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 110 }}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0ea5e9" />}
           >
             {/* SUB-ABA 1: VISÃO GERAL (TRANSAÇÕES RECENTES) */}

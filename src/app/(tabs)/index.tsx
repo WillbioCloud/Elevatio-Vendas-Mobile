@@ -18,9 +18,7 @@ import {
   EyeOff,
   FileText,
   Flame,
-  Moon,
   Phone,
-  Sun,
   Users,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
@@ -33,7 +31,7 @@ import { NotificationsModal } from '../../components/notifications/Notifications
 export default function DashboardScreen() {
   const router = useRouter();
   const { user, profile, company } = useAuth();
-  const { colors, isDark, setThemeMode } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -153,10 +151,6 @@ export default function DashboardScreen() {
     loadDashboardData();
   };
 
-  const toggleTheme = () => {
-    setThemeMode(isDark ? 'light' : 'dark');
-  };
-
   const firstName = profile?.name ? profile.name.trim().split(' ')[0] : 'Corretor';
   const roleLabel =
     profile?.role === 'owner'
@@ -187,7 +181,7 @@ export default function DashboardScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 20, paddingTop: 56, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: 20, paddingTop: 56, paddingBottom: 110 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0ea5e9" />}
       >
         {/* Header com Avatar + Saudação + Ações Rápidas */}
@@ -284,23 +278,6 @@ export default function DashboardScreen() {
               activeOpacity={0.7}
             >
               {hideValues ? <EyeOff size={16} color={colors.textMuted} /> : <Eye size={16} color={colors.textMuted} />}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={toggleTheme}
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 10,
-                backgroundColor: colors.card,
-                borderWidth: 1,
-                borderColor: colors.border,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              activeOpacity={0.7}
-            >
-              {isDark ? <Sun size={16} color="#f59e0b" /> : <Moon size={16} color="#0ea5e9" />}
             </TouchableOpacity>
 
             <TouchableOpacity

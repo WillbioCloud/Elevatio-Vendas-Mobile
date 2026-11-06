@@ -278,7 +278,7 @@ export default function LeadsScreen() {
         <FlatList
           data={filteredLeads}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 96 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 110 }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0ea5e9" />
           }
@@ -339,7 +339,7 @@ export default function LeadsScreen() {
         onPress={() => setIsNewLeadModalVisible(true)}
         style={{
           position: 'absolute',
-          bottom: 24,
+          bottom: 96,
           right: 20,
           width: 52,
           height: 52,
