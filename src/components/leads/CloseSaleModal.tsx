@@ -105,7 +105,6 @@ export const CloseSaleModal: React.FC<CloseSaleModalProps> = ({
           .from('properties')
           .update({
             status: 'Vendido',
-            updated_at: new Date().toISOString(),
           })
           .eq('id', selectedPropertyId);
       }

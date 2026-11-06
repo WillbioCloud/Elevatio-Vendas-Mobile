@@ -25,6 +25,7 @@ import {
   MapPin,
   Maximize2,
   MessageCircle,
+  Pencil,
   Plus,
   Search,
   Share2,
@@ -41,6 +42,15 @@ import { Property } from '../../types';
 import { formatCurrency } from '../../utils/crm';
 
 type FilterType = 'all' | 'sale' | 'rent' | 'temporada' | 'legal_pending' | 'inactive';
+
+function getListingTypeLabel(listingType?: string | null): string {
+  if (!listingType) return 'VENDA';
+  const lower = listingType.toLowerCase();
+  if (lower === 'sale' || lower === 'venda') return 'VENDA';
+  if (lower === 'rent' || lower === 'locacao' || lower === 'locação') return 'LOCAÇÃO';
+  if (lower === 'temporada' || lower === 'seasonal') return 'TEMPORADA';
+  return listingType.toUpperCase();
+}
 
 export default function PropertiesScreen() {
   const router = useRouter();
@@ -59,11 +69,7 @@ export default function PropertiesScreen() {
       setLoading(true);
       let query = supabase
         .from('properties')
-        .select(`
-          id, title, slug, price, type, listing_type, status, city, neighborhood, state,
-          bedrooms, bathrooms, area, garage, images, featured, has_intermediation_signed,
-          created_at, agent_id, condo_fee, iptu_fee
-        `)
+        .select('id, title, slug, price, condominium, iptu, type, listing_type, status, city, neighborhood, state, bedrooms, suites, bathrooms, area, garage, images, featured, has_intermediation_signed, created_at, agent_id, owner_name, owner_phone, key_status')
         .order('created_at', { ascending: false });
 
       if (profile?.company_id) {
@@ -97,7 +103,7 @@ export default function PropertiesScreen() {
       const nextVal = !property.featured;
       const { error } = await supabase
         .from('properties')
-        .update({ featured: nextVal, updated_at: new Date().toISOString() })
+        .update({ featured: nextVal })
         .eq('id', property.id);
 
       if (error) throw error;
@@ -116,7 +122,7 @@ export default function PropertiesScreen() {
       const nextStatus = property.status === 'Disponível' ? 'Inativo' : 'Disponível';
       const { error } = await supabase
         .from('properties')
-        .update({ status: nextStatus, updated_at: new Date().toISOString() })
+        .update({ status: nextStatus })
         .eq('id', property.id);
 
       if (error) throw error;
@@ -383,7 +389,7 @@ export default function PropertiesScreen() {
                     }}
                   >
                     <Text style={{ fontSize: 11, fontWeight: '700', color: '#ffffff' }}>
-                      {(item.listing_type || 'Venda').toUpperCase()}
+                      {getListingTypeLabel(item.listing_type)}
                     </Text>
                   </View>
 
@@ -474,12 +480,43 @@ export default function PropertiesScreen() {
                   </View>
 
                   {/* Título e Valor */}
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 4 }} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-                  <Text style={{ fontSize: 18, fontWeight: '700', color: '#10b981', marginBottom: 8 }}>
-                    {formatCurrency(item.price)}
-                  </Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text, flex: 1, marginRight: 8 }} numberOfLines={2}>
+                      {item.title}
+                    </Text>
+                    {(item.code || item.slug || item.id) ? (
+                      <View
+                        style={{
+                          backgroundColor: colors.mutedSurface,
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 4,
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                        }}
+                      >
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: colors.textMuted }}>
+                          #{item.code || item.slug?.slice(0, 8) || item.id.slice(0, 6).toUpperCase()}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: '#10b981' }}>
+                      {formatCurrency(item.price)}
+                    </Text>
+                    {item.condominium && item.condominium > 0 ? (
+                      <Text style={{ fontSize: 11, color: colors.textMuted }}>
+                        Cond: {formatCurrency(item.condominium)}
+                      </Text>
+                    ) : null}
+                    {item.iptu && item.iptu > 0 ? (
+                      <Text style={{ fontSize: 11, color: colors.textMuted }}>
+                        IPTU: {formatCurrency(item.iptu)}
+                      </Text>
+                    ) : null}
+                  </View>
 
                   {/* Localização */}
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 10 }}>
@@ -531,7 +568,7 @@ export default function PropertiesScreen() {
                     )}
                   </View>
 
-                  {/* Ações Rápidas: Alternar Status, WhatsApp, Compartilhar */}
+                  {/* Ações Rápidas: Alternar Status, WhatsApp, Compartilhar, Editar */}
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <TouchableOpacity
                       onPress={() => handleToggleStatus(item)}
@@ -560,6 +597,23 @@ export default function PropertiesScreen() {
                           <Text style={{ fontSize: 11, fontWeight: '600', color: '#10b981' }}>Ativar</Text>
                         </>
                       )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => router.push({ pathname: '/property-form', params: { id: item.id } })}
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 8,
+                        backgroundColor: colors.mutedSurface,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Pencil size={14} color={colors.text} />
                     </TouchableOpacity>
 
                     <TouchableOpacity

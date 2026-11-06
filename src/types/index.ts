@@ -1,6 +1,18 @@
 export type UserRole = 'owner' | 'manager' | 'admin' | 'atendente' | 'corretor';
 export type AppUserRole = UserRole | 'super_admin';
 
+export interface RolePermissionsMap {
+  [permissionKey: string]: boolean;
+}
+
+export interface AppRolePermissions {
+  manager?: RolePermissionsMap;
+  admin?: RolePermissionsMap;
+  attendant?: RolePermissionsMap;
+  agent?: RolePermissionsMap;
+  [role: string]: RolePermissionsMap | undefined;
+}
+
 export interface Company {
   id: string;
   name: string;
@@ -37,6 +49,7 @@ export interface Profile {
   bank_account?: string | null;
   bank_info?: any;
   permissions?: any;
+  last_seen?: string | null;
   level: number;
   level_title: string;
   xp_points: number;
@@ -55,42 +68,63 @@ export interface AppSettings {
 
 export interface Property {
   id: string;
-  company_id?: string | null;
+  company_id: string;
+  agent_id?: string | null;
+  created_by?: string | null;
+  code?: string | null;
   title: string;
-  slug?: string;
+  slug?: string | null;
+  description?: string | null;
   price: number;
+  condominium?: number | null; // NUNCA usar condo_fee
+  iptu?: number | null;        // NUNCA usar iptu_fee
   type: string;
-  listing_type?: 'sale' | 'rent' | 'temporada' | string;
-  status: string;
-  city: string;
-  neighborhood: string;
-  state: string;
-  address?: string | null;
-  street?: string | null;
-  number?: string | null;
-  zip_code?: string | null;
+  listing_type?: 'sale' | 'rent' | 'seasonal' | string;
+  status: 'Disponível' | 'Reservado' | 'Vendido' | 'Alugado' | 'Inativo' | string;
   bedrooms: number;
   suites?: number | null;
   bathrooms: number;
+  garage: number;
   area: number;
   built_area?: number | null;
-  garage: number;
-  condo_fee?: number | null;
-  iptu_fee?: number | null;
-  images?: string[];
-  featured?: boolean;
-  description?: string | null;
+  land_area?: number | null;
+  cep?: string | null;
+  zip_code?: string | null;
+  address?: string | null;
+  street?: string | null;
+  number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  features?: string[] | null;
   amenities?: string[] | null;
+  images: string[];
+  video_url?: string | null;
+  tour_360_url?: string | null;
+  featured?: boolean;
+  is_seasonal?: boolean;
+  daily_rate?: number | null;
+  cleaning_fee?: number | null;
+  max_guests?: number | null;
+  min_nights?: number | null;
   owner_name?: string | null;
   owner_cpf_cnpj?: string | null;
   owner_phone?: string | null;
   owner_email?: string | null;
-  owner_pix_type?: string | null;
+  owner_pix?: string | null;
   owner_pix_key?: string | null;
+  owner_pix_type?: string | null;
   owner_civil_status?: string | null;
+  has_exclusivity?: boolean;
+  commission_agreed?: string | null;
+  commission_percentage?: number | null;
   has_intermediation_signed?: boolean;
+  intermediation_contract_url?: string | null;
+  key_location?: string | null;
+  key_status?: 'agency' | 'client' | 'broker' | 'owner' | string | null;
   created_at?: string;
-  agent_id?: string | null;
+  updated_at?: string;
 }
 
 export interface Lead {

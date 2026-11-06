@@ -20,11 +20,12 @@ import {
   PenTool,
   Search,
   ShieldCheck,
+  UserCheck,
   Users,
   X,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { Contract } from '../../types';
+import { Contract, Profile } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { supabase } from '../../lib/supabase';
@@ -40,6 +41,7 @@ export default function ContractsScreen() {
   const { colors, isDark } = useAppTheme();
 
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [profilesMap, setProfilesMap] = useState<Record<string, { name: string; avatar_url?: string }>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
@@ -53,11 +55,13 @@ export default function ContractsScreen() {
     if (!user) return;
     try {
       setLoading(true);
+
+      // Busca contratos
       let query = supabase
         .from('contracts')
         .select(`
           id, type, status, sale_total_value, rent_value, content, html_content,
-          notes, created_at, updated_at, company_id, broker_id, lead_id, property_id
+          notes, created_at, updated_at, company_id, broker_id, lead_id, property_id, created_by
         `)
         .order('created_at', { ascending: false });
 
@@ -65,9 +69,30 @@ export default function ContractsScreen() {
         query = query.eq('company_id', profile.company_id);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-      setContracts((data as unknown as Contract[]) || []);
+      // Busca perfis para mapeamento do corretor responsável sem risco de erro de FK
+      let profQuery = supabase
+        .from('profiles')
+        .select('id, name, avatar_url');
+
+      if (profile?.company_id) {
+        profQuery = profQuery.eq('company_id', profile.company_id);
+      }
+
+      const [{ data: contractsData, error: contractsErr }, { data: profsData }] = await Promise.all([
+        query,
+        profQuery,
+      ]);
+
+      if (contractsErr) throw contractsErr;
+
+      const pMap: Record<string, { name: string; avatar_url?: string }> = {};
+      if (profsData) {
+        profsData.forEach((p: any) => {
+          pMap[p.id] = { name: p.name || 'Corretor', avatar_url: p.avatar_url };
+        });
+      }
+      setProfilesMap(pMap);
+      setContracts((contractsData as unknown as Contract[]) || []);
     } catch (err) {
       console.warn('Erro ao carregar contratos:', err);
     } finally {
@@ -106,21 +131,21 @@ export default function ContractsScreen() {
   // Filtros
   const filteredContracts = useMemo(() => {
     return contracts.filter((c) => {
-      // Filtro de aba
       if (activeFilter === 'sales' && c.type !== 'sale') return false;
       if (activeFilter === 'rents' && c.type !== 'rent') return false;
       if (activeFilter === 'pending' && c.status !== 'pending') return false;
       if (activeFilter === 'signed' && c.status !== 'active' && c.status !== 'signed') return false;
 
-      // Filtro de busca
       if (!search.trim()) return true;
       const q = search.toLowerCase();
       const matchType = (c.type || '').toLowerCase().includes(q);
       const matchStatus = (c.status || '').toLowerCase().includes(q);
       const matchNotes = (c.notes || '').toLowerCase().includes(q);
-      return matchType || matchStatus || matchNotes;
+      const brokerId = c.broker_id || c.created_by;
+      const matchBroker = brokerId && profilesMap[brokerId]?.name.toLowerCase().includes(q);
+      return matchType || matchStatus || matchNotes || matchBroker;
     });
-  }, [contracts, activeFilter, search]);
+  }, [contracts, activeFilter, search, profilesMap]);
 
   const getStatusBadge = (status: string) => {
     const s = (status || '').toLowerCase();
@@ -267,7 +292,7 @@ export default function ContractsScreen() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Buscar por tipo, status ou notas..."
+            placeholder="Buscar por tipo, status, notas ou corretor..."
             placeholderTextColor={colors.textMuted}
             style={{ flex: 1, fontSize: 13, color: colors.text }}
           />
@@ -359,6 +384,9 @@ export default function ContractsScreen() {
                 ? 'Termo de Intermediação'
                 : 'Contrato Imobiliário';
 
+            const brokerId = item.broker_id || item.created_by;
+            const brokerName = brokerId ? profilesMap[brokerId]?.name : null;
+
             return (
               <View
                 style={{
@@ -371,7 +399,7 @@ export default function ContractsScreen() {
                 }}
               >
                 {/* Header do Card */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                   <View style={{ flex: 1, marginRight: 8 }}>
                     <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }} numberOfLines={1}>
                       {typeLabel}
@@ -394,6 +422,30 @@ export default function ContractsScreen() {
                     </Text>
                   </View>
                 </View>
+
+                {/* Tag do Corretor Responsável (Pilar 3) */}
+                {brokerName && (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      backgroundColor: isDark ? 'rgba(14, 165, 233, 0.1)' : '#f0f9ff',
+                      alignSelf: 'flex-start',
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 6,
+                      borderWidth: 1,
+                      borderColor: isDark ? 'rgba(14, 165, 233, 0.2)' : '#bae6fd',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <UserCheck size={12} color="#0ea5e9" />
+                    <Text style={{ fontSize: 11, color: colors.textMuted }}>
+                      Corretor: <Text style={{ fontWeight: '700', color: colors.text }}>{brokerName}</Text>
+                    </Text>
+                  </View>
+                )}
 
                 {/* Valor */}
                 {value > 0 && (
@@ -483,4 +535,3 @@ export default function ContractsScreen() {
     </View>
   );
 }
-
